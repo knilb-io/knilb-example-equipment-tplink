@@ -1,0 +1,73 @@
+# Release (PSR): chained off Continuous Integration via workflow_run rather than `push`,
+# so a release only ever happens for a main commit whose tests passed, and the build is
+# defined once — in continuous-integration.yml — for both PRs and main.
+#
+# GitHub always reads this file from the DEFAULT branch for workflow_run, so edits here
+# take effect only once merged to main.
+#
+# Releases go to GitHub Releases only (no PyPI). Keep the workflow `name:` ("Release")
+# stable: other workflows may chain off its completion by name.
+
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["Continuous Integration"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # workflow_run fires for every CI conclusion (failure, cancelled, ...) and would fire
+    # for CI's pull_request runs on main too, so gate on both explicitly.
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push'
+
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-release-${{ github.event.workflow_run.head_branch }}
+      cancel-in-progress: false
+
+    permissions:
+      contents: write
+
+    outputs:
+      released: ${{ steps.release.outputs.released || 'false' }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.release.outputs.tag }}
+
+    steps:
+      - name: Setup | Checkout repository
+        uses: actions/checkout@v6
+        with:
+          # Check out the branch, not head_sha: PSR needs a branch to push its
+          # version commit and tag to.
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - name: Action | Semantic Version Release
+        id: release
+        uses: python-semantic-release/python-semantic-release@v10.5.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          git_committer_name: "github-actions"
+          git_committer_email: "actions@users.noreply.github.com"
+
+      - name: Publish | Upload to GitHub Release Assets
+        uses: python-semantic-release/publish-action@v10.5.3
+        if: steps.release.outputs.released == 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.release.outputs.tag }}
+
+      - name: Publish | Upload distribution artifacts
+        uses: actions/upload-artifact@v4
+        if: steps.release.outputs.released == 'true'
+        with:
+          name: distribution-artifacts
+          path: dist/
+          if-no-files-found: error

@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+equipment-tplink = {path = ".", editable = true}
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+pytest-asyncio = "*"
+ruff = "*"
+mypy = "*"
+types-pyyaml = "*"
+jsonschema = "*"
+rfc3339-validator = "*"
+openapi-spec-validator = "*"
+httpx2 = "*"
+
+[requires]
+python_version = "3.12"

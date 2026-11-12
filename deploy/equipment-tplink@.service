@@ -1,0 +1,21 @@
+# systemd unit for Raspberry Pi OS. The instance name is the user that owns
+# ~/equipment-tplink (see README "Install on a Raspberry Pi"):
+#   sudo cp deploy/equipment-tplink@.service /etc/systemd/system/
+#   sudo systemctl enable --now equipment-tplink@$USER
+
+[Unit]
+Description=equipment-tplink: TP-Link plugs as Knilb test equipment
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=/home/%i/equipment-tplink
+ExecStart=/home/%i/equipment-tplink/.venv/bin/equipment-tplink serve
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,79 @@
+# The test gate: lint, type-check and pytest for every meaningful commit — PR heads
+# (pull_request) and the main tip (push). Release chains off this workflow via
+# workflow_run, so a release only ever happens for a main commit whose tests passed.
+#
+# pytest enforces the 90% branch-coverage gate and the OpenAPI drift check (both
+# configured in pyproject.toml / tests), so there is no separate step for them.
+#
+# pyproject.toml and Pipfile are deliberately NOT ignored — ruff, pytest, and PSR config
+# live there and must stay tested. PSR's own version-bump commit needs no exclusion: it
+# pushes as the built-in GITHUB_TOKEN, and GITHUB_TOKEN pushes never start workflows.
+
+name: Continuous Integration
+
+on:
+  push:
+    branches: ["main"]
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - '**.md'
+  pull_request:
+    branches: ["main"]
+    paths-ignore:
+      - '.github/**'
+      - '.vscode/**'
+      - '**.md'
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+          cache: "pipenv"
+          cache-dependency-path: Pipfile.lock
+
+      - name: Install pipenv
+        run: pip install --upgrade pip pipenv
+
+      - name: Install deps (locked)
+        run: pipenv sync --dev
+
+      - name: Lint with ruff
+        run: |
+          pipenv run ruff check src/ tests/
+          pipenv run ruff format --check src/ tests/
+
+      - name: Type-check with mypy
+        run: pipenv run mypy
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+          cache: "pipenv"
+          cache-dependency-path: Pipfile.lock
+
+      - name: Install pipenv
+        run: pip install --upgrade pip pipenv
+
+      - name: Install deps (locked)
+        run: pipenv sync --dev
+
+      - name: Test with pytest
+        run: pipenv run pytest

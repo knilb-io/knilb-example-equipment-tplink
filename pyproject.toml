@@ -1,0 +1,142 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "equipment-tplink"
+version = "0.1.3"
+license = "GPL-3.0-only"
+license-files = ["LICENSE"]
+description = "REST service exposing TP-Link Kasa plugs to Knilb as test equipment and as a device under test"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "nko", email = "nate@knilb.com" }]
+keywords = ["testing", "automation", "iot", "test-equipment", "tp-link", "kasa"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Framework :: FastAPI",
+    "Topic :: Software Development :: Testing",
+    "Topic :: System :: Hardware",
+]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    "pyyaml>=6.0",
+    "python-kasa>=0.12.0",
+    "tplink-cloud-api>=5.2.1,<6",
+]
+
+[project.scripts]
+equipment-tplink = "equipment_tplink.cli:main"
+
+[project.urls]
+Repository = "https://github.com/knilb-io/knilb-example-equipment-tplink"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--strict-markers",
+    "--cov",
+    "--cov-report=term-missing:skip-covered",
+    "-m",
+    "not hardware and not destructive",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore:Using .httpx. with .starlette.testclient. is deprecated",
+    "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
+]
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "hardware: needs a real plug and/or TP-Link account; opt-in via env vars",
+    "destructive: factory-resets a real plug; run manually only",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["equipment_tplink"]
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "\\.\\.\\.",
+    "assert_never\\(",
+    "raise NotImplementedError",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "D"]
+ignore = ["D105", "D107"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["tplinkcloud", "tplinkcloud.*", "jsonschema", "jsonschema.*"]
+ignore_missing_imports = true
+
+[tool.semantic_release]
+commit_parser = "conventional"
+tag_format = "v{version}"
+version_toml = ["pyproject.toml:project.version"]
+major_on_zero = false
+allow_zero_version = true
+build_command = "pip install build && python -m build"
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = [
+    "feat",
+    "fix",
+    "perf",
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "style",
+    "refactor",
+    "test",
+    "ai",
+]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.changelog]
+mode = "init"
+
+[tool.semantic_release.changelog.default_templates]
+changelog_file = "CHANGELOG.md"
+
+[tool.semantic_release.branches.main]
+match = "(main|master)"
+prerelease = false
+
+[tool.semantic_release.remote]
+name = "origin"
+type = "github"
+
+[tool.semantic_release.publish]
+upload_to_vcs_release = true
